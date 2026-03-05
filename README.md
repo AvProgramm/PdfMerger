@@ -15,6 +15,8 @@ Open `http://localhost:5000`.
 
 - Multi-file PDF upload (drag-and-drop or file browser)
 - Drag to reorder before merge
+- Per-file page ranges (example: `1-3,5`)
+- Custom output filename
 - Duplicate filenames supported safely
 - Server-side merge via `pypdf`
 - Max upload cap configurable with `MAX_UPLOAD_MB` (default `100`)
@@ -31,8 +33,11 @@ PdfMerger/
 |  |- index.html
 |- tests/
 |  |- test_app.py
+|- api/
+|  |- index.py
 |- render.yaml
 |- Procfile
+|- vercel.json
 ```
 
 ## Deploy To Render
@@ -49,3 +54,12 @@ PdfMerger/
 Notes:
 - The service name controls the default Render URL (`https://<service-name>.onrender.com`).
 - You can later connect a custom domain for branding.
+
+## Deploy To Vercel
+
+1. Push the repo to GitHub.
+2. In Vercel, import the repository as a project.
+3. Vercel will use `vercel.json` and route all requests to `api/index.py`.
+4. Set environment variables in Vercel:
+   - `APP_NAME=pdf-merger`
+   - `MAX_UPLOAD_MB=100`

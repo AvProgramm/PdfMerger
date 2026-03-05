@@ -84,6 +84,13 @@
     .file-info { flex:1; min-width:0; }
     .file-name { font-size:.9rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .file-size { font-size:.75rem; color:var(--muted); margin-top:2px; }
+    .file-controls { margin-top:8px; display:flex; align-items:center; gap:8px; }
+    .file-controls label { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+    .range-input {
+      width:130px; background:#101015; color:var(--text); border:1px solid var(--border);
+      border-radius:8px; padding:6px 8px; font-size:.78rem; font-family:'Syne Mono',monospace;
+    }
+    .range-input:focus { outline:none; border-color:var(--accent); }
     .remove-btn {
       background:none; border:none; color:var(--muted); font-size:1rem;
       cursor:pointer; border-radius:6px; padding:4px 7px;
@@ -120,6 +127,22 @@
     #toast.error   { border-color:var(--danger);  color:var(--danger);  }
     .tip { margin-top:20px; text-align:center; font-size:.78rem; color:var(--muted); }
     .tip span { color:var(--accent2); }
+    .output-row {
+      margin-top:14px; display:flex; align-items:center; gap:10px; width:100%;
+      background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px;
+    }
+    .output-row label { font-size:.73rem; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; }
+    .output-input {
+      flex:1; background:#101015; color:var(--text); border:1px solid var(--border);
+      border-radius:8px; padding:8px 10px; font-size:.85rem; font-family:'Syne Mono',monospace;
+    }
+    .output-input:focus { outline:none; border-color:var(--accent); }
+    @media (max-width: 640px) {
+      .file-controls { flex-direction:column; align-items:flex-start; }
+      .range-input { width:100%; }
+      .output-row { flex-direction:column; align-items:flex-start; }
+      .output-input { width:100%; }
+    }
   </style>
 </head>
 <body>
@@ -144,17 +167,20 @@
       <button class="clear-btn" id="clear-btn">Clear all</button>
     </div>
     <ul id="file-list"></ul>
+    <div class="output-row">
+      <label for="output-name">Output Name</label>
+      <input id="output-name" class="output-input" type="text" value="merged.pdf" maxlength="120"/>
+    </div>
     <button id="merge-btn">
       <span class="spinner" id="spinner"></span>
       <span id="btn-label">&#11015; Merge &amp; Download</span>
     </button>
-    <p class="tip">Drag the <span>&#8801;</span> handle to reorder files before merging</p>
+    <p class="tip">Drag the <span>&#8801;</span> handle to reorder files and optionally set ranges like <span>1-3,6</span></p>
   </div>
 </div>
 <div id="toast"></div>
 
 <script>
-  const appName = {{ app_name | tojson }};
   const dropZone = document.getElementById('drop-zone');
   const fileInput = document.getElementById('file-input');
   const fileListEl = document.getElementById('file-list');
@@ -164,6 +190,7 @@
   const clearBtn = document.getElementById('clear-btn');
   const spinner = document.getElementById('spinner');
   const btnLabel = document.getElementById('btn-label');
+  const outputNameInput = document.getElementById('output-name');
   let files = [];
 
   dropZone.addEventListener('dragover', (event) => { event.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -185,7 +212,7 @@
       showToast('Only PDF files are supported', 'error');
       return;
     }
-    pdfs.forEach((file) => files.push({ id: crypto.randomUUID(), file }));
+    pdfs.forEach((file) => files.push({ id: crypto.randomUUID(), file, range: '' }));
     render();
   }
 
@@ -212,6 +239,10 @@
         <div class="file-info">
           <div class="file-name" title="${item.file.name}">${item.file.name}</div>
           <div class="file-size">${formatSize(item.file.size)}</div>
+          <div class="file-controls">
+            <label>Pages</label>
+            <input class="range-input" type="text" placeholder="all or 1-3,5" value="${item.range || ''}" />
+          </div>
         </div>
         <button class="remove-btn" title="Remove">&#10005;</button>`;
 
@@ -222,6 +253,9 @@
       li.querySelector('.remove-btn').addEventListener('click', () => {
         files = files.filter((fileItem) => fileItem.id !== item.id);
         render();
+      });
+      li.querySelector('.range-input').addEventListener('input', (event) => {
+        item.range = event.target.value;
       });
       fileListEl.appendChild(li);
     });
@@ -256,8 +290,8 @@
   }
 
   mergeBtn.addEventListener('click', async () => {
-    if (files.length < 2) {
-      showToast('Add at least 2 PDFs to merge', 'error');
+    if (files.length < 1) {
+      showToast('Add at least 1 PDF', 'error');
       return;
     }
 
@@ -269,8 +303,11 @@
     files.forEach((item) => {
       formData.append('pdfs', item.file, item.file.name);
       formData.append('file_ids[]', item.id);
+      formData.append('range_ids[]', item.id);
+      formData.append('ranges[]', item.range || '');
     });
     files.forEach((item) => formData.append('order[]', item.id));
+    formData.append('output_name', outputNameInput.value.trim() || 'merged.pdf');
 
     try {
       const response = await fetch('/merge', { method: 'POST', body: formData });
@@ -283,11 +320,11 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      const safeName = appName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'pdf-merger';
-      link.download = safeName + '-merged.pdf';
+      const safeName = (outputNameInput.value.trim() || 'merged.pdf').replace(/[^a-zA-Z0-9._-]+/g, '-');
+      link.download = safeName.toLowerCase().endsWith('.pdf') ? safeName : (safeName + '.pdf');
       link.click();
       URL.revokeObjectURL(url);
-      showToast('Merged ' + files.length + ' files successfully', 'success');
+      showToast('Merged ' + files.length + ' file(s) successfully', 'success');
     } catch (error) {
       showToast('Error: ' + error.message, 'error');
     } finally {
