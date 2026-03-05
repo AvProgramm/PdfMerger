@@ -1,30 +1,51 @@
-# PDF Merger — Flask App
+# PDF Merger - Flask App
 
-A clean, drag-and-drop web app to merge multiple PDF files in any order.
+A drag-and-drop web app to merge multiple PDF files in a custom order.
 
-## Setup
+## Local Run
 
 ```bash
 pip install -r requirements.txt
 python app.py
 ```
 
-Then open **http://localhost:5000** in your browser.
+Open `http://localhost:5000`.
 
 ## Features
 
-- Upload multiple PDFs via drag-and-drop or file browser
-- Drag rows to reorder before merging
-- Remove individual files
-- Merged PDF downloads instantly via the browser
-- Handles up to 100 MB total payload
+- Multi-file PDF upload (drag-and-drop or file browser)
+- Drag to reorder before merge
+- Duplicate filenames supported safely
+- Server-side merge via `pypdf`
+- Max upload cap configurable with `MAX_UPLOAD_MB` (default `100`)
+- App branding configurable with `APP_NAME` (default `PDF Merger`)
+- Health endpoint at `/health`
 
 ## Project Structure
 
+```text
+PdfMerger/
+|- app.py
+|- requirements.txt
+|- templates/
+|  |- index.html
+|- tests/
+|  |- test_app.py
+|- render.yaml
+|- Procfile
 ```
-pdf_merger/
-├── app.py              # Flask backend
-├── requirements.txt
-└── templates/
-    └── index.html      # Single-page UI
-```
+
+## Deploy To Render
+
+1. Push this repo to GitHub.
+2. In Render, create a new Web Service from the repo.
+3. Keep these values:
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `gunicorn app:app`
+   - Health Check Path: `/health`
+4. Set the Render service name to your desired app name.
+5. Set `APP_NAME` in Render environment variables to the exact display name you want.
+
+Notes:
+- The service name controls the default Render URL (`https://<service-name>.onrender.com`).
+- You can later connect a custom domain for branding.

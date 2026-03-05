@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: pdf-merger
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: MAX_UPLOAD_MB
+        value: 100
+      - key: APP_NAME
+        value: pdf-merger
